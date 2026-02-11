@@ -1,0 +1,96 @@
+# Default configuration for preference-guided diffusion steering
+# This configuration defines all parameters for training and evaluation
+
+seed: 42
+
+# Model configuration
+model:
+  base_model_path: "runwayml/stable-diffusion-v1-5"
+  device: "cuda"
+  enable_cpu_offload: false
+
+  # Steering module configuration
+  steering_config:
+    hidden_dim: 512
+    num_layers: 3
+    dropout_rate: 0.1
+    activation: "gelu"
+    use_time_embedding: true
+    preference_dim: 256
+
+# Training configuration
+training:
+  batch_size: 32
+  num_epochs: 100
+
+  # Optimizer settings
+  optimizer:
+    name: "adamw"
+    learning_rate: 0.001
+    weight_decay: 0.01
+    betas: [0.9, 0.999]
+
+  # Learning rate scheduler
+  scheduler:
+    name: "cosine"
+    T_max: 100
+    eta_min: 0.00001
+
+  # Loss function configuration
+  loss:
+    margin: 1.0
+    preference_weight: 1.0
+    guidance_regularization: 0.01
+    consistency_weight: 0.1
+
+  # Training control
+  checkpoint_dir: "checkpoints"
+  early_stopping_patience: 20
+  min_delta: 0.001
+  max_grad_norm: 1.0
+  log_steps: 100
+
+  # MLflow tracking
+  use_mlflow: true
+  experiment_name: "preference-guided-diffusion"
+  mlflow_tracking_uri: "file:./mlruns"
+
+# Data configuration
+data:
+  # Dataset settings
+  preference_dataset: "openbmb/UltraFeedback"
+  caption_dataset: "conceptual_captions"
+  max_samples: null
+  caption_max_samples: 10000
+  min_rating_diff: 1.0
+
+  # DataLoader settings
+  batch_size: 32
+  num_workers: 4
+  preference_ratio: 0.7
+  use_caption_dataset: false
+  cache_dir: null
+
+  # Data preprocessing
+  data_processor:
+    tokenizer_name: "openai/clip-vit-base-patch32"
+    max_text_length: 77
+    text_augmentation: true
+
+# Evaluation configuration
+evaluation:
+  clip_model_name: "openai/clip-vit-base-patch32"
+  batch_size: 32
+
+  # Target metrics (from specification)
+  target_metrics:
+    human_preference_win_rate: 0.65
+    clip_score_improvement: 0.08
+    fid_degradation_max: 5.0
+    preference_prediction_accuracy: 0.74
+    steering_latency_overhead_ms: 50
+
+  # Evaluation settings
+  num_samples: 1000
+  save_images: true
+  output_dir: "evaluation_results"

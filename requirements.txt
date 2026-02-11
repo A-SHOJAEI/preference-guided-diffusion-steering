@@ -1,0 +1,50 @@
+# Core dependencies
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.21.0
+pillow>=8.3.0
+transformers>=4.21.0
+diffusers>=0.20.0
+accelerate>=0.20.0
+
+# Data and ML utilities
+datasets>=2.0.0
+scikit-learn>=1.1.0
+pandas>=1.4.0
+tqdm>=4.64.0
+
+# Configuration and logging
+pyyaml>=6.0
+mlflow>=2.0.0
+omegaconf>=2.2.0
+
+# Training utilities
+peft>=0.5.0
+trl>=0.7.0
+
+# Evaluation and metrics
+# clip-by-openai>=1.0  # Use transformers CLIP instead
+pytorch-fid>=0.3.0
+
+# Image processing
+opencv-python>=4.6.0
+matplotlib>=3.5.0
+seaborn>=0.11.0
+
+# Development and testing
+pytest>=7.0.0
+pytest-cov>=3.0.0
+black>=22.0.0
+flake8>=4.0.0
+
+# Utilities
+requests>=2.28.0
+# pathlib>=1.0.0  # Part of Python 3.4+ standard library
+typing-extensions>=4.0.0
+
+# Note: The following are marked as optional dependencies with fallbacks in code:
+# - accelerate: Used for model optimization (has fallback)
+# - peft/trl: Used for advanced training techniques (has fallback)
+# - mlflow: Used for experiment tracking (has fallback)
+# - pytorch-fid: Used for FID score calculation (has fallback)
+# - clip-by-openai: CLIP model (uses transformers instead)
