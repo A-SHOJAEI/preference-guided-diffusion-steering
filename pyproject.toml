@@ -1,0 +1,176 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "preference-guided-diffusion-steering"
+version = "0.1.0"
+description = "Uses UltraFeedback preference data to train a lightweight steering module that guides text-to-image diffusion models toward human-preferred aesthetic and semantic qualities"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Alireza Shojaei"}
+]
+keywords = [
+    "diffusion",
+    "preference-learning",
+    "text-to-image",
+    "machine-learning",
+    "generative-ai",
+    "rlhf"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "torch>=2.0.0",
+    "torchvision>=0.15.0",
+    "numpy>=1.21.0",
+    "pillow>=8.3.0",
+    "transformers>=4.21.0",
+    "diffusers>=0.20.0",
+    "accelerate>=0.20.0",
+    "datasets>=2.0.0",
+    "scikit-learn>=1.1.0",
+    "pandas>=1.4.0",
+    "tqdm>=4.64.0",
+    "pyyaml>=6.0",
+    "mlflow>=2.0.0",
+    "peft>=0.5.0",
+    "trl>=0.7.0",
+    "matplotlib>=3.5.0",
+    "seaborn>=0.11.0",
+    "requests>=2.28.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=3.0.0",
+    "black>=22.0.0",
+    "flake8>=4.0.0",
+    "mypy>=0.991",
+]
+evaluation = [
+    "clip-by-openai>=1.0",
+    "pytorch-fid>=0.3.0",
+    "opencv-python>=4.6.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/alirezashojaei/preference-guided-diffusion-steering"
+Repository = "https://github.com/alirezashojaei/preference-guided-diffusion-steering"
+Documentation = "https://github.com/alirezashojaei/preference-guided-diffusion-steering/blob/main/README.md"
+"Bug Tracker" = "https://github.com/alirezashojaei/preference-guided-diffusion-steering/issues"
+
+[project.scripts]
+pgds-train = "scripts.train:main"
+pgds-evaluate = "scripts.evaluate:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.yml", "*.json"]
+
+[tool.black]
+line-length = 88
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*", "*Test"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--cov=src/preference_guided_diffusion_steering",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+    "--cov-fail-under=70"
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+filterwarnings = [
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+disallow_untyped_decorators = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = [
+    "mlflow.*",
+    "datasets.*",
+    "transformers.*",
+    "diffusers.*",
+    "accelerate.*",
+    "peft.*",
+    "trl.*",
+    "clip.*",
+    "pytorch_fid.*",
+    "cv2.*",
+]
+ignore_missing_imports = true
+
+[tool.flake8]
+max-line-length = 88
+extend-ignore = [
+    "E203",  # whitespace before ':'
+    "E501",  # line too long (handled by black)
+    "W503",  # line break before binary operator
+]
+exclude = [
+    ".git",
+    "__pycache__",
+    "build",
+    "dist",
+    ".eggs",
+    "*.egg-info",
+    ".venv",
+    ".tox",
+]
