@@ -63,7 +63,9 @@ class PreferenceLoss(nn.Module):
         self.consistency_weight = consistency_weight
 
         # Loss functions
-        self.ranking_loss = nn.MarginRankingLoss(margin=margin, reduction='mean')
+        # Use reduction='none' so we can apply per-sample weighting by rating_diffs,
+        # then manually average. When rating_diffs is not provided, we just call .mean().
+        self.ranking_loss = nn.MarginRankingLoss(margin=margin, reduction='none')
         self.mse_loss = nn.MSELoss()
 
     def forward(
@@ -105,16 +107,17 @@ class PreferenceLoss(nn.Module):
         # Ranking loss - preferred should have higher scores
         targets = torch.ones(batch_size, device=preferred_embeddings.device)
 
+        # Compute per-sample ranking loss (reduction='none')
+        per_sample_ranking_loss = self.ranking_loss(
+            preferred_scores, dispreferred_scores, targets
+        )
+
         if rating_diffs is not None:
-            # Weight the loss by rating differences
+            # Weight the per-sample loss by normalized rating differences
             weights = torch.clamp(rating_diffs / rating_diffs.max(), min=0.1, max=1.0)
-            ranking_loss = (self.ranking_loss(
-                preferred_scores, dispreferred_scores, targets
-            ) * weights).mean()
+            ranking_loss = (per_sample_ranking_loss * weights).mean()
         else:
-            ranking_loss = self.ranking_loss(
-                preferred_scores, dispreferred_scores, targets
-            )
+            ranking_loss = per_sample_ranking_loss.mean()
 
         # Guidance scale regularization - prevent too large guidance scales
         guidance_reg_loss = self.guidance_regularization * torch.abs(
@@ -143,8 +146,8 @@ class PreferenceLoss(nn.Module):
             "ranking_loss": ranking_loss,
             "guidance_reg_loss": guidance_reg_loss,
             "consistency_loss": consistency_loss,
-            "preferred_scores": preferred_scores.mean(),
-            "dispreferred_scores": dispreferred_scores.mean()
+            "preferred_scores": preferred_scores,
+            "dispreferred_scores": dispreferred_scores
         }
 
 
@@ -376,8 +379,21 @@ class PreferenceTrainer:
                     self._log_step_metrics(loss_dict, "train")
 
             except Exception as e:
-                logger.warning(f"Error in batch {batch_idx}: {e}")
+                logger.error(f"Error in training batch {batch_idx}: {e}", exc_info=True)
+                if num_batches == 0 and batch_idx >= 2:
+                    # If the first 3 batches all fail, raise the error instead of
+                    # silently continuing with zero metrics for the entire epoch
+                    raise RuntimeError(
+                        f"First {batch_idx + 1} training batches all failed. "
+                        f"Last error: {e}"
+                    ) from e
                 continue
+
+        if num_batches == 0:
+            logger.error(
+                "All training batches failed! Metrics will be zero. "
+                "Check error messages above for details."
+            )
 
         # Calculate epoch averages
         avg_metrics = {
@@ -429,7 +445,7 @@ class PreferenceTrainer:
                     total_loss += loss_dict["total_loss"].item()
                     total_ranking_loss += loss_dict["ranking_loss"].item()
 
-                    # Calculate accuracy (preferred > dispreferred)
+                    # Calculate per-sample accuracy (preferred > dispreferred)
                     pref_scores = loss_dict["preferred_scores"]
                     dispref_scores = loss_dict["dispreferred_scores"]
                     accuracy = (pref_scores > dispref_scores).float().mean().item()
@@ -444,8 +460,19 @@ class PreferenceTrainer:
                     })
 
                 except Exception as e:
-                    logger.warning(f"Error in validation batch {batch_idx}: {e}")
+                    logger.error(f"Error in validation batch {batch_idx}: {e}", exc_info=True)
+                    if num_batches == 0 and batch_idx >= 2:
+                        raise RuntimeError(
+                            f"First {batch_idx + 1} validation batches all failed. "
+                            f"Last error: {e}"
+                        ) from e
                     continue
+
+        if num_batches == 0:
+            logger.error(
+                "All validation batches failed! Metrics will be zero. "
+                "Check error messages above for details."
+            )
 
         # Calculate averages
         avg_metrics = {
@@ -484,32 +511,33 @@ class PreferenceTrainer:
         else:
             # Create synthetic preference pairs from caption data
             labels = batch["labels"].to(self.device)
-            batch_size = len(prompts) // 2
-            preferred_labels = labels[:batch_size]
-            dispreferred_labels = 1 - preferred_labels  # Flip labels
+            batch_size = len(prompts)
+            preferred_labels = torch.ones(batch_size, dtype=torch.long, device=self.device)
+            dispreferred_labels = torch.zeros(batch_size, dtype=torch.long, device=self.device)
             rating_diffs = None
 
         # Encode prompts
         positive_embeddings, _ = self.model.encode_prompts(prompts)
 
+        # Use the full batch - each prompt is used for BOTH preferred and
+        # dispreferred steering (same prompt, different preference signals)
+        batch_size = positive_embeddings.size(0)
+
         # Create timesteps (simulate diffusion timesteps)
-        batch_size = positive_embeddings.size(0) // 2
         timesteps = torch.randint(
             0, 1000, (batch_size,), device=self.device
         )
 
-        # Apply steering for preferred examples
-        preferred_embeddings = positive_embeddings[:batch_size]
+        # Apply steering for preferred examples (same prompts, preference=1)
         preferred_steered = self.model.apply_preference_steering(
-            preferred_embeddings,
+            positive_embeddings,
             timesteps,
             preferred_labels[:batch_size]
         )
 
-        # Apply steering for dispreferred examples
-        dispreferred_embeddings = positive_embeddings[batch_size:]
+        # Apply steering for dispreferred examples (same prompts, preference=0)
         dispreferred_steered = self.model.apply_preference_steering(
-            dispreferred_embeddings,
+            positive_embeddings,
             timesteps,
             dispreferred_labels[:batch_size]
         )
@@ -518,7 +546,7 @@ class PreferenceTrainer:
         loss_dict = self.criterion(
             preferred_steered,
             dispreferred_steered,
-            positive_embeddings[:batch_size],  # Original embeddings
+            positive_embeddings,  # Original embeddings (same prompts for both)
             self.model.steering_module,
             rating_diffs
         )
@@ -549,7 +577,11 @@ class PreferenceTrainer:
             try:
                 for key, value in metrics.items():
                     if torch.is_tensor(value):
-                        value = value.item()
+                        # For multi-element tensors (e.g. per-sample scores), log the mean
+                        if value.numel() > 1:
+                            value = value.mean().item()
+                        else:
+                            value = value.item()
                     mlflow.log_metric(f"{phase}_{key}_step", value, step=self.current_step)
             except Exception as e:
                 logger.warning(f"MLflow step logging failed: {e}")
