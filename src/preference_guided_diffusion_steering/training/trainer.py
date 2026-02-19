@@ -26,6 +26,10 @@ except ImportError:
     MLFLOW_AVAILABLE = False
     mlflow = None
 
+# Disable MLflow if environment variable is set
+if os.environ.get("DISABLE_MLFLOW", "").lower() in ("1", "true", "yes"):
+    MLFLOW_AVAILABLE = False
+
 from ..models.model import PreferenceGuidedDiffusionModel, SteeringModule
 from ..data.loader import PreferenceDataLoader
 from ..data.preprocessing import PreferenceDataProcessor
