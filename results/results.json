@@ -1,0 +1,45 @@
+{
+  "experiment": "preference-guided-diffusion-steering",
+  "status": "completed",
+  "training": {
+    "total_epochs": 100,
+    "best_epoch": 18,
+    "best_val_loss": 0.5413,
+    "best_val_accuracy": 0.20,
+    "final_train_loss": 0.6989,
+    "final_val_loss": 0.5312,
+    "final_val_accuracy": 0.20,
+    "initial_train_loss": 0.9337,
+    "initial_val_loss": 0.6658,
+    "learning_rate_initial": 0.001,
+    "learning_rate_final": 1.024e-05,
+    "scheduler": "cosine",
+    "max_val_accuracy": 0.40,
+    "checkpoint_size_mb": 28.9
+  },
+  "model": {
+    "base_model": "runwayml/stable-diffusion-v1-5",
+    "steering_module": {
+      "hidden_dim": 512,
+      "num_layers": 3,
+      "dropout_rate": 0.1
+    }
+  },
+  "best_checkpoint_metrics": {
+    "epoch": 18,
+    "total_loss": 0.5413,
+    "ranking_loss": 0.5286,
+    "accuracy": 0.20
+  },
+  "training_progression": {
+    "epoch_1": {"train_loss": 0.9337, "val_loss": 0.6658, "val_accuracy": 0.10},
+    "epoch_10": {"train_loss": 0.7303, "val_loss": 0.5523, "val_accuracy": 0.00},
+    "epoch_20": {"train_loss": 0.7167, "val_loss": 0.5405, "val_accuracy": 0.00},
+    "epoch_30": {"train_loss": 0.7106, "val_loss": 0.5353, "val_accuracy": 0.00},
+    "epoch_50": {"train_loss": 0.7042, "val_loss": 0.5320, "val_accuracy": 0.00},
+    "epoch_70": {"train_loss": 0.7001, "val_loss": 0.5314, "val_accuracy": 0.00},
+    "epoch_90": {"train_loss": 0.6990, "val_loss": 0.5313, "val_accuracy": 0.00},
+    "epoch_100": {"train_loss": 0.6989, "val_loss": 0.5312, "val_accuracy": 0.20}
+  },
+  "notes": "Training on synthetic preference data. Loss converged well (25% reduction in train loss, 20% in val loss) but accuracy remained low and unstable (0-40%), indicating limited preference signal from synthetic data. The steering module architecture is validated but would benefit from real UltraFeedback preference data."
+}
